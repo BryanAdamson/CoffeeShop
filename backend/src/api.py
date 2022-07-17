@@ -68,7 +68,7 @@ def create_app(test_config=None):
         returns status code 200 and json {"success": True, "drinks": drinks} where drinks is the list of drinks
             or appropriate status code indicating reason for failure
     '''
-    @app.route('/drinks-details', methods=['GET'])
+    @app.route('/drinks-detail', methods=['GET'])
     @requires_auth('get:drinks-detail')
     def get_drinks_details(token):
         drinks = Drink.query.order_by(Drink.id).all()
@@ -106,7 +106,7 @@ def create_app(test_config=None):
             return jsonify({
                 'success': True,
                 'created': drink.id,
-                'drink': drink.long(),
+                'drinks': [drink.long()],
                 'total_drinks': len(drink.query.all())
 
             })
@@ -133,26 +133,25 @@ def create_app(test_config=None):
         body = request.get_json()
         drink = Drink.query.filter(Drink.id == id).one_or_none()
 
-        if 'recipe' not in body:
-            title = body['title']
+        title = body.get('title', None)
+        recipe = json.dumps(body.get('recipe', None))
+
+        if recipe is None:
             recipe = drink.recipe
-        elif 'title' not in body:
+        if title is None:
             title = drink.title
-            recipe = json.dumps(body['recipe'])
-        else:
-            title = body['title']
-            recipe = json.dumps(body['recipe'])
 
         if drink is None:
             abort(404)
         else:
             drink.recipe = recipe
             drink.title = title
+
             try:
                 drink.update()
                 return jsonify({
                     'success': True,
-                    'drink': list(drink.long().items())
+                    'drinks': [drink.long()]
                 })
             except:
                 abort(422)
@@ -181,7 +180,7 @@ def create_app(test_config=None):
                 drink.delete()
                 return jsonify({
                     'success': True,
-                    'drink': drink.long()
+                    'delete': id
                 })
             except:
                 abort(422)
@@ -230,7 +229,7 @@ def create_app(test_config=None):
     '''
 
     @app.errorhandler(AuthError)
-    def unauthorized(AuthError):
+    def auth(AuthError):
         return jsonify({
             "success": False,
             "error": AuthError.error,
